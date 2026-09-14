@@ -3,37 +3,36 @@ kind: ServiceAccount
 metadata:
   name: imagepullsecret-patcher
   namespace: imagepullsecret-patcher
+  labels:
+    app.kubernetes.io/name: imagepullsecret-patcher
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  labels:
-    k8s-app: imagepullsecret-patcher
   name: imagepullsecret-patcher
+  labels:
+    app.kubernetes.io/name: imagepullsecret-patcher
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - serviceaccounts
-  verbs:
-  - list
-  - patch
-  - create
-  - get
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - namespaces
-  verbs:
-  - list
-  - get
+  # The managed secret is created, kept up to date and, when its type is wrong,
+  # replaced in every namespace.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "delete"]
+  # Service accounts are listed to find the ones to patch.
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "list", "patch"]
+  # Namespaces are listed to know where to work.
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: imagepullsecret-patcher
+  labels:
+    app.kubernetes.io/name: imagepullsecret-patcher
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

@@ -1,9 +1,13 @@
+# The source credential that gets copied into every namespace.
+# Replace the value below, see deploy-example/README.md for how to generate it.
 apiVersion: v1
 kind: Secret
 type: kubernetes.io/dockerconfigjson
 metadata:
   name: image-pull-secret-src
   namespace: imagepullsecret-patcher
+  labels:
+    app.kubernetes.io/name: imagepullsecret-patcher
 data:
   .dockerconfigjson: eyJhdXRocyI6eyJnY3IuaW8iOnsicGFzc3dvcmQiOiJ7XCJhdXRoXCI6e1wiZ2NyLmlvXCI6e1widXNlcm5hbWVcIjpcIl9qc29uX2tleVwiLFwicGFzc3dvcmRcIjpcInt9XCJ9fX0iLCJ1c2VybmFtZSI6Il9qc29uX2tleSJ9fX0=
 ---
@@ -13,43 +17,61 @@ metadata:
   name: imagepullsecret-patcher
   namespace: imagepullsecret-patcher
   labels:
-    name: imagepullsecret-patcher
+    app.kubernetes.io/name: imagepullsecret-patcher
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: imagepullsecret-patcher
+      app.kubernetes.io/name: imagepullsecret-patcher
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
-        name: imagepullsecret-patcher
+        app.kubernetes.io/name: imagepullsecret-patcher
     spec:
-      automountServiceAccountToken: true
       serviceAccountName: imagepullsecret-patcher
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: imagepullsecret-patcher
-          image: "quay.io/titansoft/imagepullsecret-patcher:v0.14"
+          # kustomize edit set image, or edit this line, to pin your own build:
+          # ghcr.io/<owner>/imagepullsecret-patcher:<commit-sha>
+          image: ghcr.io/tesseractdigitainnovations/imagepullsecret-patcher:latest
+          imagePullPolicy: IfNotPresent
           env:
-            - name: CONFIG_FORCE
-              value: "true"
-            - name: CONFIG_DEBUG
-              value: "false"
-            - name: CONFIG_ALLSERVICEACCOUNT
-              value: "true"
-            - name: CONFIG_DOCKERCONFIGJSONPATH
-              value: "/app/secrets/.dockerconfigjson"
+            # Keep the Go heap inside the memory limit below, so the GC works
+            # harder instead of the pod being OOM-killed.
+            - name: GOMEMLIMIT
+              value: 56MiB
+          args:
+            - -dockerconfigjsonpath=/secrets/.dockerconfigjson
+            - -allserviceaccount
+            - -loop-duration=1m
+            - -log-format=json
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            privileged: false
+            capabilities:
+              drop: ["ALL"]
           volumeMounts:
             - name: src-dockerconfigjson
-              mountPath: "/app/secrets"
+              mountPath: /secrets
               readOnly: true
           resources:
             requests:
-              cpu: 0.1
-              memory: 15Mi
+              cpu: 25m
+              memory: 24Mi
             limits:
-              cpu: 0.2
-              memory: 30Mi
+              cpu: 200m
+              memory: 64Mi
       volumes:
         - name: src-dockerconfigjson
-          secret: 
+          secret:
             secretName: image-pull-secret-src

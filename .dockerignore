@@ -1,0 +1,19 @@
+# Everything that is not needed to build the binary.
+.git
+.github
+.golangci.yml
+.gitignore
+.dockerignore
+Dockerfile
+Makefile
+LICENSE
+README.md
+CONTRIBUTING.md
+CHANGELOG.md
+doc/
+deploy-example/
+imagepullsecret-patcher
+dist/
+coverage.txt
+*.out
+*.test
