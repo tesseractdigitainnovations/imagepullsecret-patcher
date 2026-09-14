@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"flag"
 	"io"
@@ -71,9 +72,11 @@ func TestNewLogger(t *testing.T) {
 }
 
 func TestNewLoggerDebug(t *testing.T) {
+	ctx := context.Background()
+
 	var quiet, verbose bytes.Buffer
-	newLogger(&config.Config{}, &quiet).Log(nil, slog.LevelDebug, "hello") //nolint:staticcheck // a nil context is fine for a discarding logger
-	newLogger(&config.Config{Debug: true}, &verbose).Log(nil, slog.LevelDebug, "hello")
+	newLogger(&config.Config{}, &quiet).Log(ctx, slog.LevelDebug, "hello")
+	newLogger(&config.Config{Debug: true}, &verbose).Log(ctx, slog.LevelDebug, "hello")
 
 	if quiet.Len() != 0 {
 		t.Errorf("debug message logged without -debug: %q", quiet.String())
